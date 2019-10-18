@@ -1,0 +1,84 @@
+install.packages("rtweet")
+install.packages("dplyr")
+install.packages("httpuv")
+install.packages("tidyr")
+install.packages("ggplot2")
+install.packages("zoo")
+install.packages("scales")
+install.packages("lubridate")
+library(rtweet)
+library(dplyr)
+library(httpuv)
+library(tidyr)
+library(ggplot2)
+library(zoo)
+library(scales)
+library(lubridate)
+
+## name assigned to created app
+appname <- "Messaging Reader"
+## api key (example below is not a real key)
+key <- "put in key number"
+## api secret (example below is not a real key)
+secret <- "put in secret number"
+twitter_token <- create_token(
+  app = appname,
+  consumer_key = key,
+  consumer_secret = secret)
+
+#Getting posts from a particular Twitter timeline. Username and number of posts to return
+time2 <- get_timeline(c("HillaryClinton","realDonaldTrump"), n = 3000)
+#@narendramodi, "EPN","lopezobrador_ ", @RahulGandhi, @BarackObama, @realDonaldTrump, 
+
+#creating column called "engagement_score" that is filled with
+# the sum of two ther columns
+time2$engagement_score <- time2$favorite_count + time2$retweet_count
+
+
+#Subsetting data to keep most useful columns and drop the rest (so we dont have 40 + columns)
+
+time2 <- subset(time2, select = c(created_at, screen_name, text, engagement_score))
+
+#convertig string to dates and arranging them in the way I want
+time2$created_at <- as.Date(time2$created_at, "%Y/%m/%d")
+#time2$created_at <- format(time2$created_at, format="%Y/%m")
+#time2$created_at <- as.Date(time2$created_at, "%Y/%m")
+
+
+#Checking the class
+class(time2$created_at)
+
+time2$month_year <- floor_date(as.Date(time2$created_at), unit = "month")
+
+#Next step is to get the total sum of engagement score points per month
+
+
+#I now created a different dataframe that is grouped by screen_name and created_at variables, with
+# a mean engagmenet score. 
+aggdata <- time2 %>% group_by(screen_name, month_year) %>% summarize(Avg = mean(engagement_score))
+
+
+
+#Checking to make sure that my intended X-axis variable/column is classified as a date
+class(aggdata$month_year)
+
+# Basic line plot with points
+aggplot <- ggplot(data=aggdata, aes(x=month_year, y=Avg, group=screen_name)) +
+  geom_line(aes(linetype=screen_name, col=screen_name))+ xlab("Month and Year") + ylab("Average Engagement Score Per Post")+
+  geom_point()
+
+
+aggplot
+
+
+
+# I now have a plot that has each social media post as a datapoint, but I would like each data point to be the 
+# mean engagement score for each month. 
+
+
+#scale_x_date(date_breaks = "1 Month", date_labels = "(%Y-%m")
+#scale_x_date(labels = date_format("Y%-%m"), breaks = "1 Month")
+#scale_x_date(labels = date_format("%Y-%m"),    breaks = "1 month") 
+# The resulting plot is difficult to read x-axis labels AND does not seem to be in proper timeseries order. 
+# The x-axis column was formated to an as.date(), but ggplot does not seem to recognize it as a time series? Help?
+
